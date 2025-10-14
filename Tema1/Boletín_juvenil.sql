@@ -396,10 +396,18 @@ BEGIN
 	WHILE (@@FETCH_STATUS = 0)
 	BEGIN
 
-		SELECT @stockact = CAST(Stock AS int) FROM productos WHERE @codprod = CodProducto
-
+		SELECT @stockact = CAST(Stock AS int) FROM productos WHERE CodProducto = @codprod
 		
-		UPDATE productos SET Stock = CAST(@stockact AS VARCHAR(10))  WHERE @codprod = CodProducto
+		SET @stockact = @stockact - @unidades
+
+		IF (@stockact >= 0)
+		BEGIN
+			UPDATE productos SET Stock = CAST(@stockact AS VARCHAR(10))  WHERE CodProducto = @codprod
+		END
+		ELSE
+		BEGIN
+			PRINT 'El producto ' + CAST(@codprod AS VARCHAR(10)) + ' se ha quedado sin stock'
+		END
 
 		FETCH actualizacion INTO @codprod, @unidades
 	END
@@ -408,9 +416,56 @@ BEGIN
 	DEALLOCATE actualizacion
 END
 ROLLBACK
+--COMMIT TRANSACTION T1
 
 EXEC actualizacionstock
 
+--Apartado B
+CREATE OR ALTER PROCEDURE imprimirventas
+AS
+BEGIN
+	DECLARE @linea VARCHAR(10), @importetotal DECIMAL(10,2)
+	DECLARE @prod VARCHAR(10), @unidades int, @importeprod DECIMAL(10,2)
+
+	DECLARE recorrerlinea CURSOR FOR
+	SELECT DISTINCT LineaProducto FROM productos
+
+	OPEN recorrerlinea
+	FETCH recorrerlinea INTO @linea
+
+	WHILE (@@FETCH_STATUS =0)
+	BEGIN
+		SET @importetotal = 0
+		PRINT 'Linea Producto: ' + @linea
+
+		DECLARE recorrerproducto CURSOR FOR
+		SELECT Nombre, Stock, PrecioUnitario FROM productos WHERE LineaProducto = @linea
+
+		OPEN recorrerproducto
+		FETCH recorrerproducto INTO @prod, @unidades, @importeprod
+
+		WHILE (@@FETCH_STATUS = 0)
+		BEGIN
+			PRINT '		' + @prod + '		' + CAST(@unidades AS VARCHAR(10)) + '		' + CAST(@importeprod AS VARCHAR(10))
+
+			SET @importetotal = @importetotal + @importeprod
+
+			FETCH recorrerproducto INTO @prod, @unidades, @importeprod
+		END
+
+		CLOSE recorrerproducto
+		DEALLOCATE recorrerproducto
+
+		PRINT 'Importe total ' + @linea + ': ' + CAST(@importetotal AS VARCHAR(10))
+
+		FETCH recorrerlinea INTO @linea
+	END
+
+	CLOSE recorrerlinea
+	DEALLOCATE recorrerlinea
+END
+
+EXEC imprimirventas
 
 
 select * from ventas
