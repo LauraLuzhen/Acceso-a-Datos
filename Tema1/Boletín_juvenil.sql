@@ -438,7 +438,9 @@ BEGIN
 
 	IF @codventa IN (SELECT CodVenta FROM ventas)
 	BEGIN 
-
+		SET @verificarstock = @stock + @unidades
+		UPDATE productos SET Stock = @verificarstock WHERE CodProducto = @codprod
+		DELETE FROM ventas WHERE CodVenta = @codventa
 	END
 	ELSE 
 	BEGIN
@@ -459,6 +461,7 @@ COMMIT TRANSACTION controlotodo
 
 INSERT INTO dbo.ventas VALUES ('V42', '2', '1997-09-22',10)
 SELECT * FROM productos
+SELECT * FROM ventas
 
 -- Apartado B
 CREATE OR ALTER PROCEDURE imprimirventas
