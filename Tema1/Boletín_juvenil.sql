@@ -369,6 +369,7 @@ GO
 
 BEGIN TRANSACTION T1
 -- EJERCICIO 3
+-- Apartado A sin trigger
 CREATE OR ALTER PROCEDURE actualizacionstock
 AS
 BEGIN
@@ -420,7 +421,46 @@ ROLLBACK
 
 EXEC actualizacionstock
 
---Apartado B
+
+
+-- Apartado A con trigger
+BEGIN TRANSACTION controlotodo
+CREATE OR ALTER TRIGGER controlstock
+ON ventas
+INSTEAD OF INSERT
+AS
+BEGIN
+	DECLARE @stock INT, @verificarstock INT
+	DECLARE @codprod INT, @unidades INT, @codventa VARCHAR(10), @fecha DATE
+
+	SELECT @codprod = i.CodProducto, @unidades = i.UnidadesVendidas, @codventa = i.CodVenta, @fecha = i.FechaVenta FROM inserted AS i
+	SELECT @stock = Stock FROM productos WHERE CodProducto = @codprod
+
+	IF @codventa IN (SELECT CodVenta FROM ventas)
+	BEGIN 
+
+	END
+	ELSE 
+	BEGIN
+		SET @verificarstock = @stock - @unidades
+		IF @verificarstock < 0
+		BEGIN
+			PRINT 'No queda stock suficiente del producto ' + CAST(@codprod AS VARCHAR(10))
+		END
+		ELSE
+		BEGIN
+			INSERT INTO dbo.ventas VALUES (@codventa, @codprod, @fecha, @unidades)
+			UPDATE productos SET Stock = @verificarstock WHERE CodProducto = @codprod
+		END
+	END
+END
+ROLLBACK
+COMMIT TRANSACTION controlotodo
+
+INSERT INTO dbo.ventas VALUES ('V42', '2', '1997-09-22',10)
+SELECT * FROM productos
+
+-- Apartado B
 CREATE OR ALTER PROCEDURE imprimirventas
 AS
 BEGIN
