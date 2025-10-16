@@ -1,69 +1,88 @@
 --LAURA LUZHEN RODRÍGUEZ MORÁN
 USE SCOTT
+GO
 
 --EJERCICIO 1
 --Haz una función llamada DevolverCodDept que reciba el nombre de un departamento y devuelva su código.
-CREATE FUNCTION dbo.DevolverCodDept(@nombre VARCHAR(14))
-RETURNS INT 
+CREATE OR ALTER FUNCTION dbo.DevolverCodDept(@nombredept VARCHAR(14))
+RETURNS INT
 AS
 BEGIN
-	DECLARE @codigo INT
-	SELECT @codigo = (SELECT DEPTNO FROM DEPT WHERE DNAME = @nombre)
-	RETURN @codigo
+	DECLARE @cod INT
+
+	SELECT @cod = DEPTNO FROM DEPT WHERE DNAME = @nombredept
+
+	RETURN @cod
 END
-SELECT dbo.DevolverCodDept ('hola') AS 'Código'
+SELECT dbo.DevolverCodDept('SALES') AS 'Código del departamento'
 GO
 
 --EJERCICIO 2
---Realiza un procedimiento llamado HallarNumEmp que recibiendo un nombre de departamento, muestre en pantalla el número de empleados de dicho departamento. 
---Puedes utilizar la función creada en el ejercicio 1. Si el departamento no tiene empleados deberá mostrar un mensaje informando de ello. Si el departamento 
---no existe se tratará la excepción correspondiente.
-CREATE OR ALTER PROCEDURE HallarNumEmp (@nombre VARCHAR(14))
+--Realiza un procedimiento llamado HallarNumEmp que recibiendo un nombre de departamento, muestre en pantalla el número de empleados 
+--de dicho departamento. Puedes utilizar la función creada en el ejercicio 1. Si el departamento no tiene empleados deberá mostrar 
+--un mensaje informando de ello. Si el departamento no existe se tratará la excepción correspondiente.
+CREATE OR ALTER PROCEDURE HallarNumEmp @nombredpt VARCHAR(14)
 AS
 BEGIN
-	DECLARE @numero INT, @count INT = 0
-	SET @numero = dbo.DevolverCodDept (@nombre)
+	DECLARE @cod INT, @cantemp INT
+	SELECT @cod = dbo.DevolverCodDept(@nombredpt)
 
-	IF @numero IS NULL
+	SELECT @cantemp = COUNT(*) FROM EMP WHERE DEPTNO = @cod
+
+	IF @cod NOT IN (SELECT DEPTNO FROM DEPT)
 	BEGIN
-		PRINT 'Algo salió mal...'
-		RAISERROR('ERROR', 1, 1)
+		RAISERROR('El departamento no existe', 1, 1)
 		RETURN
 	END
-	ELSE 
+
+	IF @cantemp = 0
 	BEGIN
-		DECLARE cNumeroEmpleados CURSOR FOR SELECT * FROM EMP WHERE DEPTNO = @numero
-		OPEN cNumeroEmpleados
-		FETCH cNumeroEmpleados
-		WHILE (@@FETCH_STATUS = 0)
-		BEGIN
-			SET @count += 1
-			FETCH cNumeroEmpleados
-		END
+		RAISERROR('El departamento no tiene empleados', 1, 1)
+		RETURN
+	END
+	ELSE
+	BEGIN
+		PRINT CAST(@cantemp AS VARCHAR(10))
+		RETURN
 	END
 END
 EXEC HallarNumEmp 'SALES'
 GO
 
 --EJERCICIO 3
---Realiza una función llamada CalcularCosteSalarial que reciba un nombre de departamento y devuelva la suma de los salarios y comisiones de los empleados de 
---dicho departamento. Trata las excepciones que consideres necesarias.
-CREATE OR ALTER FUNCTION CalcularCosteSalarial (@departamento AS VARCHAR(14))
-RETURNS MONEY
+--Realiza una función llamada CalcularCosteSalarial que reciba un nombre de departamento y devuelva la suma de los salarios y 
+--comisiones de los empleados de dicho departamento. Trata las excepciones que consideres necesarias.
+CREATE OR ALTER FUNCTION CalcularCosteSalarial(@nombredpt VARCHAR(14))
+RETURNS @res TABLE(Salario DECIMAL(7,2), Comision DECIMAL(7,2))
 AS
 BEGIN
-	DECLARE @codDept INT, @total MONEY
-	SET @codDept = dbo.DevolverCodDept(@departamento)
+	DECLARE @sal DECIMAL(7,2), @comm DECIMAL(7,2), @cod INT
+	DECLARE @sumsal DECIMAL(7,2) = 0, @sumcomm DECIMAL(7,2) = 0
+	SELECT @cod = dbo.DevolverCodDept(@nombredpt)
 
-	IF @codDept IS NULL 
-		RETURN NULL
-		
-	SELECT @total = SUM(ISNULL(SAL, 0) + ISNULL(COMM, 0)) FROM EMP WHERE DEPTNO = @codDept
-	RETURN @total
+	DECLARE recorrer CURSOR FOR
+	SELECT SAL, COMM FROM EMP WHERE DEPTNO = @cod
+	OPEN recorrer
+	FETCH recorrer INTO @sal, @comm
+	WHILE @@FETCH_STATUS = 0
+	BEGIN
+		SET @sumsal = @sumsal + @sal
+		SET @sumcomm = @sumcomm + ISNULL(@comm, 0)
+		FETCH recorrer INTO @sal, @comm
+	END
+	CLOSE recorrer
+	DEALLOCATE recorrer
+
+	INSERT INTO @res VALUES (@sumsal, @sumcomm)
+
+	RETURN
 END
-
-SELECT dbo.CalcularCosteSalarial('ACCOUNTING')
+SELECT dbo.CalcularCosteSalarial('SALES')
 GO
+DROP FUNCTION IF EXISTS dbo.CalcularCosteSalarial;
+
+SELECT * FROM EMP
+SELECT * FROM DEPT
 
 --EJERCICIO 4 
 --Realiza un procedimiento MostrarCostesSalariales que muestre los nombres de todos los departamentos y el coste salarial de cada uno de ellos. Puedes usar la 

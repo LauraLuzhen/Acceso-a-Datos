@@ -420,6 +420,7 @@ ROLLBACK
 --COMMIT TRANSACTION T1
 
 EXEC actualizacionstock
+select * from productos
 
 
 
