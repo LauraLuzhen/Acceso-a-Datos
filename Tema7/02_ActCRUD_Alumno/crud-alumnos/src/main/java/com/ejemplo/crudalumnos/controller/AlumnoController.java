@@ -9,6 +9,10 @@ import com.ejemplo.crudalumnos.repository.AlumnoRepository;
 import java.util.List;
 import java.util.Optional;
 
+// Imports para la ACT3
+import com.ejemplo.crudalumnos.dto.AlumnoDTO;
+import jakarta.validation.Valid;
+
 @RestController
 @RequestMapping("/alumnos")
 public class AlumnoController {
@@ -30,10 +34,16 @@ public class AlumnoController {
                       .orElse(ResponseEntity.notFound().build());
     }
 
-    // CREATE: Crear alumno
+    // CREATE: Crear alumno para la ACT3 con validaciones
     @PostMapping
-    public ResponseEntity<Alumno> crear(@RequestBody Alumno alumno) {
+    public ResponseEntity<Alumno> crear(@Valid @RequestBody AlumnoDTO dto) {
+
+        Alumno alumno = new Alumno();
+        alumno.setNombre(dto.getNombre());
+        alumno.setEmail(dto.getEmail());
+
         Alumno creado = repo.save(alumno);
+
         return ResponseEntity.status(201).body(creado);
     }
 
